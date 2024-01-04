@@ -3,7 +3,6 @@ const express = require('express');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 
-const indexRouter = require('./routes/index');
 const galleryRouter = require('./routes/gallery');
 const imagesRouter = require('./routes/images');
 
@@ -14,9 +13,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
-app.use('/', indexRouter);
 app.use('/gallery', galleryRouter)
 app.use('/images', imagesRouter)
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {

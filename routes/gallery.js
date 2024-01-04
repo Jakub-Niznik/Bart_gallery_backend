@@ -4,16 +4,34 @@ const path = require('path');
 const fs = require('fs');
 const multer  = require('multer');
 const zipper = require('zip-local');
+const tmp = require('tmp');
+const Validator = require('jsonschema').Validator;
 
 
 router.get('/', function(req, res, next) {
-  const response = JSON.stringify(getGalleries());
+  const response = JSON.stringify(getGalleries(req.app.get('galleryPath')));
   console.info('Sending galleries');
   res.send(response);
 });
 
 router.post('/', function(req, res, next) {
   const name = req.body.name;
+  const newGalleryPath = path.join(req.app.get('galleryPath'), name);
+
+  const validator = new Validator();
+  const galleryScheme = {
+    "title": "New gallery insert schema",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": ["name"],
+    "additionalProperties": false
+  };
+  console.log(validator.validate(req.body, galleryScheme).errors);
 
   if (!name) {
     console.error('Request does not contain object \'name\'.');
@@ -28,12 +46,13 @@ router.post('/', function(req, res, next) {
       "name": "INVALID_SCHEMA",
       "description": "Bad JSON object: u'name' is a required property"
     }));
-  } else if (fs.existsSync(path.resolve(`../gallery/${name}`))) {
+  } else if (fs.existsSync(newGalleryPath)) {
     console.error(`Gallery with requested name (${name}) already exists!`);
     res.status(409);
     res.send('Gallery with this name already exists');
   } else {
-    const response = JSON.stringify(createGallery(name))
+    console.log(newGalleryPath);
+    const response = JSON.stringify(createGallery(name, newGalleryPath))
     console.info('Sending response.');
     res.status(201);
     res.send(response);
@@ -42,13 +61,14 @@ router.post('/', function(req, res, next) {
 
 router.get('/:gallery', function(req, res, next) {
   const gallery = req.params.gallery;
+  const galleryPath = path.join(req.app.get('galleryPath'), gallery);
 
-  if (!fs.existsSync(path.resolve(`../gallery/${gallery}`))) {
+  if (!fs.existsSync(galleryPath)) {
     console.error(`Gallery with requested name (${gallery}) does not exists!`);
     res.status(404);
     res.send('Gallery does not exists');
   } else {
-    const response = getPhotos(req.params.gallery);
+    const response = getPhotos(gallery, galleryPath);
     console.info('Sending response.');
     res.send(response);
   }
@@ -56,20 +76,21 @@ router.get('/:gallery', function(req, res, next) {
 
 router.post('/:gallery', function(req, res, next) {
   const gallery = req.params.gallery;
+  const galleryPath = path.join(req.app.get('galleryPath'), gallery);
 
-  if (!fs.existsSync(path.resolve(`../gallery/${gallery}`))) {
+  if (!fs.existsSync(galleryPath)) {
     console.error(`Gallery with requested name (${gallery}) does not exists!`);
     res.status(404);
     res.send('Gallery not found');
   } else {
-    const upload = multer({ dest: `../files/upload_image/` });
+    const upload = multer({ dest: galleryPath });
     upload.single('image')(req, res, function(err) {
       if (err) {
         console.error('File missing in request!');
         res.status(400);
         res.send('Invalid request - file not found.');
       } else {
-        let finalPath = `../gallery/${gallery}/${req.file.originalname}`;
+        let finalPath = path.join(galleryPath, req.file.originalname);
         if (fs.existsSync(finalPath)) {
           console.error(`File ${finalPath} already exists!`);
           res.status(409);
@@ -81,7 +102,7 @@ router.post('/:gallery', function(req, res, next) {
           let response = {
             uploaded: [{
               path: req.file.originalname,
-              fullPath: `${gallery}/${req.file.originalname}`,
+              fullPath: path.join(gallery, req.file.originalname),
               name: path.parse(req.file.originalname).name,
               modified: stats.mtime.toISOString()
             }]
@@ -98,18 +119,18 @@ router.post('/:gallery', function(req, res, next) {
 router.delete('/:galleryPath/:imagePath?', function(req, res, next) {
   const gallery = req.params.galleryPath;
   const image = req.params.imagePath;
+  const galleryPath = path.join(req.app.get('galleryPath'), gallery);
 
-  if (!fs.existsSync(`../gallery/${gallery}`) || (image && !fs.existsSync(`../gallery/${gallery}/${image}`))) {
+  if (!fs.existsSync(galleryPath) || (image && !fs.existsSync(`${galleryPath}/${image}`))) {
     console.error(`Gallery/photo with requested name does not exists!`);
     res.status(404);
     res.send('Gallery/photo does not exists');
   } else if (image) {
-    const imagePath = path.resolve(`../gallery/${gallery}/${image}`);
+    const imagePath = `${galleryPath}/${image}`;
     deleteImage(imagePath);
     console.info('Sending response.');
     res.send('Photo was deleted');
   } else {
-    const galleryPath = path.resolve(`../gallery/${gallery}`);
     deleteGallery(galleryPath);
     console.info('Sending response.');
     res.send('Gallery was deleted');
@@ -117,14 +138,24 @@ router.delete('/:galleryPath/:imagePath?', function(req, res, next) {
 });
 
 router.get('/download/:gallery', function(req, res, next) {
-  res.sendFile(zipGallery(req.params.gallery));
+  const galleryPath =  path.join(req.app.get('galleryPath'), req.params.gallery);
+  res.set('Content-Type', 'application/zip')
+  res.set('Content-Disposition', `attachment; filename=${req.params.gallery}`);
+  const zippedGallery = tmp.fileSync();
+  zipper.sync.zip(galleryPath).compress().save(zippedGallery.name);
+  res.sendFile(zippedGallery.name, err => {
+    if (err) {
+      console.error(err);
+    }
+    zippedGallery.removeCallback();
+  });
 });
 
 
-function getGalleries() {
+function getGalleries(galleryPath) {
   console.info('Preparing galleries info.');
   let response = {galleries: []};
-  const dirs = fs.readdirSync(path.resolve('../gallery/'));
+  const dirs = fs.readdirSync(galleryPath);
 
   for (const gallery of dirs) {
     response.galleries.push({path: encodeURI(gallery), name: gallery});
@@ -133,21 +164,19 @@ function getGalleries() {
   return response;
 }
 
-function createGallery(name) {
+function createGallery(name, newGalleryPath) {
   console.info('Creating gallery.');
-  const galleryPath = path.resolve(`../gallery/${name}`);
-  fs.mkdirSync(galleryPath);
+  fs.mkdirSync(newGalleryPath);
 
   return {path: name, name: name};
 }
 
-function getPhotos(gallery) {
+function getPhotos(gallery, galleryPath) {
   console.info('Preparing photos info.');
   let response = {
     gallery: {path: gallery, name: gallery},
     images: []
   };
-  var galleryPath = path.resolve(`../gallery/${gallery}`);
   const photos = fs.readdirSync(galleryPath);
 
   for (const photo of photos) {
@@ -164,26 +193,13 @@ function getPhotos(gallery) {
 }
 
 function deleteGallery(galleryPath) {
-  console.info(`Deleting gallery: ${imagePath}`);
+  console.info(`Deleting gallery: ${galleryPath}`);
   fs.rmdirSync(galleryPath);
 }
 
 function deleteImage(imagePath) {
   console.info(`Deleting image: ${imagePath}`);
   fs.rmSync(imagePath);
-}
-
-function zipGallery(gallery) {
-  console.info('Compressing gallery.');
-  const zippedPath = path.resolve(`../files/gallery_zip/${gallery}.zip`);
-
-  if (fs.existsSync(zippedPath)) {
-    fs.rmSync(zippedPath);
-  }
-
-  zipper.sync.zip(path.resolve(`../gallery/${gallery}`)).compress().save(path.resolve(zippedPath));
-
-  return zippedPath;
 }
 
 
