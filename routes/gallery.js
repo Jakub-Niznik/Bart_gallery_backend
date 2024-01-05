@@ -134,7 +134,7 @@ router.get('/download/:gallery', function(req, res, next) {
     throw new GalleryError('Gallery not found', 404);
   } else {
     res.set('Content-Type', 'application/zip')
-    res.set('Content-Disposition', `attachment; filename=${req.params.gallery}`);
+    res.set('Content-Disposition', `attachment; filename=${req.params.gallery}.zip`);
     const zippedGallery = tmp.fileSync();
     zipper.sync.zip(galleryPath).compress().save(zippedGallery.name);
     res.sendFile(zippedGallery.name, err => {
@@ -149,9 +149,7 @@ router.get('/download/:gallery', function(req, res, next) {
 
 
 function getGalleries(galleryPath) {
-  console.info('Preparing galleries info.');
   let response = {galleries: []};
-
   const dirs = fs.readdirSync(galleryPath);
 
   for (const gallery of dirs) {
@@ -162,14 +160,12 @@ function getGalleries(galleryPath) {
 }
 
 function createGallery(name, newGalleryPath) {
-  console.info('Creating gallery.');
   fs.mkdirSync(newGalleryPath);
 
   return {path: name, name: name};
 }
 
 function getPhotos(gallery, galleryPath) {
-  console.info('Preparing photos info.');
   let response = {
     gallery: {path: gallery, name: gallery},
     images: []
