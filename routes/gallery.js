@@ -128,17 +128,23 @@ router.delete('/:galleryPath/:imagePath?', function(req, res, next) {
 
 router.get('/download/:gallery', function(req, res, next) {
   const galleryPath =  path.join(req.app.get('galleryPath'), req.params.gallery);
-  res.set('Content-Type', 'application/zip')
-  res.set('Content-Disposition', `attachment; filename=${req.params.gallery}`);
-  const zippedGallery = tmp.fileSync();
-  zipper.sync.zip(galleryPath).compress().save(zippedGallery.name);
-  res.sendFile(zippedGallery.name, err => {
-    if (err) {
-      console.error(err);
-      throw new Error(err);
-    }
-    zippedGallery.removeCallback();
-  });
+
+  if (!fs.existsSync(galleryPath)) {
+    console.error(`Gallery with requested name does not exists!`);
+    throw new GalleryError('Gallery not found', 404);
+  } else {
+    res.set('Content-Type', 'application/zip')
+    res.set('Content-Disposition', `attachment; filename=${req.params.gallery}`);
+    const zippedGallery = tmp.fileSync();
+    zipper.sync.zip(galleryPath).compress().save(zippedGallery.name);
+    res.sendFile(zippedGallery.name, err => {
+      if (err) {
+        console.error(err);
+        throw new Error(err);
+      }
+      zippedGallery.removeCallback();
+    });
+  }
 });
 
 
