@@ -7,8 +7,6 @@ const galleryErrorHandler = require("../middlewares/galleryErrorHandler");
 const fs = require("fs");
 
 router.get('/:widthxheight/:galleryPath/:imagePath', function(req, res, next) {
-  console.info('Preparing to send preview photo.');
-
   let [width, height] = req.params.widthxheight.split('x').map(Number);
   if (width === 0) width = null;
   if (height === 0) height = null;
@@ -16,7 +14,6 @@ router.get('/:widthxheight/:galleryPath/:imagePath', function(req, res, next) {
   const fullPath = path.join(req.app.get('galleryPath'), req.params.galleryPath, req.params.imagePath);
 
   if (!fs.existsSync(fullPath)) {
-    console.error('Photo not found');
     throw new GalleryError('Photo not found', 404);
   } else {
     sharp(fullPath)
@@ -27,13 +24,11 @@ router.get('/:widthxheight/:galleryPath/:imagePath', function(req, res, next) {
         res.send(data);
       })
       .catch(err => {
-        console.error(err);
         throw new Error(err);
       });
   }
 });
 
 router.use(galleryErrorHandler);
-
 
 module.exports = router;

@@ -27,4 +27,4 @@ module.exports = function galleryErrorHandler(err, req, res, next) {
       },
     });
   }
-}
+};
