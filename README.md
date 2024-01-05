@@ -2,7 +2,7 @@ This project is based on this API: http://api.programator.sk/docs#
 
 To start server run:
  1. npm install
- 2. node 'path/bin/www' 'path/gallery'  (you can also create your own gallery directory instead)
+ 2. node 'project_path'/bin/www 'path_to_you_gallery/gallery_name'  (before runnig this command create a gallery folder)
 
 server port: 3000
 
