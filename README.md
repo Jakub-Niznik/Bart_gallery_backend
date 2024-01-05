@@ -2,7 +2,7 @@
 
 **To start server go to project Dir ('path'/bart_gallery_backend) and run:** 
  1. **npm install**
- 2. **npm start 'path_to_you_gallery/gallery_name'**  - (before runnig this command create a gallery folder)
+ 2. **npm start 'path_to_you_gallery/gallery_name'**  - (before running this command create a gallery folder)
 
 
 Server port: 3000
