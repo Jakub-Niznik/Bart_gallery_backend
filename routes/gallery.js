@@ -24,7 +24,16 @@ const galleryScheme = {
   "additionalProperties": false
 };
 const validate = ajv.compile(galleryScheme);
-
+const upload = (req, res, next) => multer({ dest: path.join(req.app.get("galleryPath"), req.params.gallery)}).single("image")(req, res, next);
+const checkBody = (req, res, next) => {
+  console.log("Checking body!" + req.headers['content-length']);
+  if (Number(req.headers['content-length']) === 0) {
+    throw new GalleryError('Invalid request - file not found.', 400);
+  } else {
+    console.log('Checked!');
+    next();
+  }
+}
 
 router.get('/', function(req, res, next) {
   const response = getGalleries(req.app.get('galleryPath'));
@@ -68,7 +77,7 @@ router.get('/:gallery', function(req, res, next) {
   }
 });
 
-router.post('/:gallery', function(req, res, next) {
+router.post('/:gallery', checkBody, upload, function(req, res, next) {
   const gallery = req.params.gallery;
   const galleryPath = path.join(req.app.get('galleryPath'), gallery);
 
@@ -76,34 +85,27 @@ router.post('/:gallery', function(req, res, next) {
     console.error(`Gallery with requested name (${gallery}) does not exists!`);
     throw new GalleryError('Gallery not found', 404);
   } else {
-    const upload = multer({ dest: galleryPath });
-    upload.single('image')(req, res, function(err) {
-      if (err) {
-        console.error('File missing in request!');
-        throw new GalleryError('Invalid request - file not found.', 400);
-      } else {
-        let finalPath = path.join(galleryPath, req.file.originalname);
-        if (fs.existsSync(finalPath)) {
-          console.error(`File ${finalPath} already exists!`);
-          throw new GalleryError('File with this name already exists', 409);
-        } else {
-          console.info(`Saving file ${finalPath}.`);
-          fs.renameSync(req.file.path, finalPath);
-          const stats = fs.statSync(finalPath);
-          let response = {
-            uploaded: [{
-              path: req.file.originalname,
-              fullPath: path.join(gallery, req.file.originalname),
-              name: path.parse(req.file.originalname).name,
-              modified: stats.mtime.toISOString()
-            }]
-          };
-          console.info('Sending response.');
-          res.status(201);
-          res.send(response);
-        }
-      }
-    })
+    const finalPath = path.join(galleryPath, req.file.originalname);
+    if (fs.existsSync(finalPath)) {
+      console.error(`File ${finalPath} already exists.`);
+      fs.rmSync(req.file.path);
+      throw new GalleryError('Photo with this name already exists', 409);
+    } else {
+      console.info(`Saving file ${finalPath}.`);
+      fs.renameSync(req.file.path, finalPath);
+      const stats = fs.statSync(finalPath);
+      let response = {
+        uploaded: [{
+          path: req.file.originalname,
+          fullPath: path.join(gallery, req.file.originalname),
+          name: path.parse(req.file.originalname).name,
+          modified: stats.mtime.toISOString()
+        }]
+      };
+      console.info('Sending response.');
+      res.status(201);
+      res.send(response);
+    }
   }
 });
 
