@@ -133,14 +133,19 @@ router.get('/download/:gallery', function(req, res, next) {
   }
 });
 
-//TODO add path to random image from gallery if there is an image
+
 function getGalleries(galleryPath) {
   let response = {galleries: []};
   const dirs = fs.readdirSync(galleryPath);
 
   for (const gallery of dirs) {
-    const photos = fs.readdirSync(path.join(galleryPath, gallery));
-    response.galleries.push({path: encodeURI(gallery), name: gallery});
+    const photos = getPhotos(gallery, path.join(galleryPath, gallery)).images;
+
+    if (photos.length > 0) {
+      response.galleries.push({path: encodeURI(gallery), name: gallery, image: photos[0]});
+    } else {
+      response.galleries.push({path: encodeURI(gallery), name: gallery});
+    }
   }
 
   return response;
@@ -162,7 +167,7 @@ function getPhotos(gallery, galleryPath) {
   for (const photo of photos) {
     const stats = fs.statSync(`${galleryPath}/${photo}`);
     response.images.push({
-      path: encodeURI(gallery),
+      path: photo,
       fullpath: `${gallery}/${photo}`,
       name: photo.split('.')[0],
       modified: stats.mtime.toISOString()
