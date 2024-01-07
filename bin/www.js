@@ -3,7 +3,8 @@ const debug = require('debug')('bart-gallery-backend:server');
 const http = require('http');
 
 if (!process.argv[2]) {
-  throw new Error('Missing argument. Path of the gallery needs to be specified.');
+  console.error('Missing gallery path. Usage: npm start GALLERY_PATH');
+  process.exit(1);
 } else {
   const galleryPath = process.argv[2];
   app.set('galleryPath', galleryPath);

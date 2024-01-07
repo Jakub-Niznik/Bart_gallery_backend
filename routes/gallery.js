@@ -10,7 +10,7 @@ const Ajv = require('ajv');
 const { galleryErrorHandler, gallerySuccessHandler, GalleryError } = require('../middlewares/galleryResponse');
 
 const ajv = new Ajv();
-const galleryScheme = {
+const gallerySchema = {
   "title": "New gallery insert schema",
   "type": "object",
   "properties": {
@@ -22,13 +22,12 @@ const galleryScheme = {
   "required": ["name"],
   "additionalProperties": false
 };
-const validate = ajv.compile(galleryScheme);
+const validateGallerySchema = ajv.compile(gallerySchema);
 const upload = (req, res, next) => multer({ dest: path.join(req.app.get("galleryPath"), req.params.gallery)}).single("image")(req, res, next);
 const checkContentLength = (req, res, next) => {
   if (Number(req.headers['content-length']) === 0) {
     throw new GalleryError('Invalid request - file not found.', 400);
   } else {
-    console.log('Checked!');
     next();
   }
 }
@@ -39,11 +38,11 @@ router.get('/', function(req, res, next) {
 });
 
 router.post('/', function(req, res, next) {
-  const valid = validate(req.body);
+  const valid = validateGallerySchema(req.body);
 
   if (!valid) {
     res.status(400);
-    res.send(validate.errors);
+    res.send(validateGallerySchema.errors);
   } else {
     const name = req.body.name;
     const newGalleryPath = path.join(req.app.get('galleryPath'), name);
@@ -169,7 +168,7 @@ function getPhotos(gallery, galleryPath) {
     response.images.push({
       path: photo,
       fullpath: `${gallery}/${photo}`,
-      name: photo.split('.')[0],
+      name: path.parse(photo).name,
       modified: stats.mtime.toISOString()
     });
   }
