@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const sharp = require('sharp');
-const GalleryError = require("../middlewares/GalleryError");
-const galleryErrorHandler = require("../middlewares/galleryErrorHandler");
 const fs = require("fs");
+
+const { galleryErrorHandler, GalleryError } = require('../middlewares/galleryResponse');
+
+
 
 router.get('/:widthxheight/:galleryPath/:imagePath', function(req, res, next) {
   let [width, height] = req.params.widthxheight.split('x').map(Number);

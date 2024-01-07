@@ -7,9 +7,7 @@ const zipper = require('zip-local');
 const tmp = require('tmp');
 const Ajv = require('ajv');
 
-const GalleryError = require('../middlewares/GalleryError.js');
-const galleryErrorHandler = require('../middlewares/galleryErrorHandler');
-const gallerySuccessHandler = require('../middlewares/gallerySuccessHandler');
+const { galleryErrorHandler, gallerySuccessHandler, GalleryError } = require('../middlewares/galleryResponse');
 
 const ajv = new Ajv();
 const galleryScheme = {
@@ -135,12 +133,13 @@ router.get('/download/:gallery', function(req, res, next) {
   }
 });
 
-
+//TODO add path to random image from gallery if there is an image
 function getGalleries(galleryPath) {
   let response = {galleries: []};
   const dirs = fs.readdirSync(galleryPath);
 
   for (const gallery of dirs) {
+    const photos = fs.readdirSync(path.join(galleryPath, gallery));
     response.galleries.push({path: encodeURI(gallery), name: gallery});
   }
 
