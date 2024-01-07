@@ -2,11 +2,16 @@ const app = require('../app');
 const debug = require('debug')('bart-gallery-backend:server');
 const http = require('http');
 
-const galleryPath = process.argv[2];
+if (!process.argv[2]) {
+  throw new Error('Missing argument. Path of the gallery needs to be specified.');
+} else {
+  const galleryPath = process.argv[2];
+  app.set('galleryPath', galleryPath);
+}
 
 const port = normalizePort(process.env.PORT || '3000');
 app.set('port', port);
-app.set('galleryPath', galleryPath);
+
 
 const server = http.createServer(app);
 
